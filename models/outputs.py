@@ -5,8 +5,8 @@ from typing import Optional, Dict
 
 class SearchOutput:
     status: str
-    arquivo: Optional[str] 
-    imagem_base64: Optional[str]
-    consulta: Dict
-    mensagem: Optional[str] = None
+    file: Optional[str] 
+    image_base64: Optional[str]
+    query: Dict
+    mensage: Optional[str] = None
     
