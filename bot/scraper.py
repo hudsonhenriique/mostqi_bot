@@ -8,7 +8,6 @@ from bot.utils.fill_search_data import fill_search_data
 from models.outputs import SearchOutput
 
 async def run_bot(name=None, cpf=None, social_filter=False) -> SearchOutput:
-    
     if not (name or cpf):
         raise ValueError("Name or CPF must be provided.")
 
@@ -22,33 +21,32 @@ async def run_bot(name=None, cpf=None, social_filter=False) -> SearchOutput:
             await close_cookie_banner(page)
             await individual_consultation(page)
             await close_cookie_banner(page)  # Re-check for reappearing banners
-            await fill_search_data(page, cpf=cpf,name=name, social_filter=social_filter)          
+            await fill_search_data(page, cpf=cpf, name=name, social_filter=social_filter)
             await perform_search(page)
 
-            # Save results with timestamp
+            # Save results and return the SearchOutput object
             result = await save_search_result(
-                page, 
-                cpf=cpf, 
-                name=name, 
+                page,
+                cpf=cpf,
+                name=name,
                 social_filter=social_filter
             )
-            
+
             print("Automation completed successfully.")
-            return result
+            return result  # Retorna diretamente o objeto SearchOutput
 
         except Exception as error:
             print(f"An error occurred during automation: {error}")
-            return SearchOutput( 
+            return SearchOutput(
                 status="error",
-                file = None,
-                image_base64= None,
-                query = {
+                file=None,
+                image_base64=None,
+                query={
                     "cpf": cpf,
                     "nome": name,
                     "filtro_social": social_filter
                 },
-
-                mensagem= str(error)
+                message=str(error)
             )
 
         finally:
