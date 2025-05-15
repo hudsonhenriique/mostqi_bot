@@ -1,50 +1,48 @@
+import os
 from datetime import datetime
-from dataclasses import asdict
+from models.outputs import SearchOutput
 from bot.utils.image_to_base64 import image_to_base64
 from bot.utils.json_helpers import save_json_output
-from models.outputs import SearchOutput
 
 async def save_search_result(page, cpf=None, name=None, social_filter=False) -> SearchOutput:
     try:
-        # Gera nome com timestamp
+        
+        output_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'outputs'))
+        os.makedirs(output_dir, exist_ok=True)
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        file_name = f"result_{timestamp}.png"
+        file_base = f"result_{timestamp}"
 
-        # Tira screenshot
-        await page.screenshot(path=file_name)
-        print(f"Search completed. Screenshot saved as {file_name}")
+        screenshot_path = os.path.join(output_dir, f"{file_base}.png")
+        await page.screenshot(path=screenshot_path)
+        print(f"📸 Screenshot salvo como: {screenshot_path}")
 
-        # Converte imagem para base64
-        image_base64_str = image_to_base64(file_name)
+        image_base64_str = image_to_base64(screenshot_path)
 
-        # Cria objeto de saída
         result = SearchOutput(
             status="success",
-            file=file_name,
+            file=screenshot_path,
             image_base64=image_base64_str,
             query={
                 "cpf": cpf,
-                "nome": name,
-                "filtro_social": social_filter
+                "name": name,
+                "filtro_social": str(social_filter)
             }
         )
 
-        # Salva JSON no disco
-        file_base = file_name.replace(".png", "")
-        save_json_output(asdict(result), file_base)
-
+        save_json_output(result.model_dump(), file_base, output_dir)
         return result
 
     except Exception as e:
-        print(f"Error saving search results: {e}")
+        print(f"❌ Erro ao salvar resultados: {e}")
         return SearchOutput(
             status="error",
             file=None,
             image_base64=None,
             query={
                 "cpf": cpf,
-                "nome": name,
-                "filtro_social": social_filter
+                "name": name,
+                "filtro_social": str(social_filter)
             },
             message=str(e)
         )

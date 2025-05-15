@@ -1,25 +1,65 @@
+import sys
 import asyncio
-import json
-from bot.scraper import run_bot
+
+# Workaround for Windows to use the ProactorEventLoop
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    loop = asyncio.ProactorEventLoop()
+    asyncio.set_event_loop(loop)
+
+from fastapi import FastAPI, Body, HTTPException
+from pydantic import BaseModel
 from models.outputs import SearchOutput
+from bot.scraper import run_bot
+import json
+from typing import Optional
 
-def main():
-    name = None
-    cpf = "12345678900"
-    social_filter = True
+app = FastAPI()
 
+class BotRequest(BaseModel):
+    name: Optional[str] = None
+    cpf: Optional[str] = None
+    social_filter: bool = True
+
+@app.post("/bot", response_model=SearchOutput)
+async def run_bot_endpoint(request: BotRequest = Body(...)):
     try:
-        
-        output = asyncio.run(run_bot(name=name, cpf=cpf, social_filter=social_filter))
+        return await run_bot(
+            name=request.name,
+            cpf=request.cpf,
+            social_filter=request.social_filter
+        )
     except Exception as e:
-        print(f"Error running the bot: {e}")
-        return None
+        raise HTTPException(status_code=500, detail=str(e))
 
-    # Retorna o JSON limpo
-    return output.to_clean_dict()
+async def async_main(cpf: str, name: Optional[str] = None, social_filter: bool = True):
+    try:
+        output = await run_bot(name=name, cpf=cpf, social_filter=social_filter)
+        print(json.dumps(output.model_dump(), indent=2, ensure_ascii=False))
+    except Exception as e:
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
-    output = main()
-    if output:
-        # Converte o dicionário para JSON formatado
-        print(json.dumps(output, indent=2, ensure_ascii=False))
+    import argparse
+
+    # Argument parser for CLI
+    parser = argparse.ArgumentParser(description="Run the bot as API or CLI")
+    parser.add_argument("--api", action="store_true", help="Start the API server")
+    parser.add_argument("--cpf", type=str, help="CPF to search (CLI mode)")
+    parser.add_argument("--name", type=str, help="Name to search (optional)")
+    parser.add_argument("--social_filter", action="store_true", help="Enable social filter")
+    
+    args = parser.parse_args()
+
+    if args.api:
+        import uvicorn
+        uvicorn.run("main:app", host="127.0.0.1", port=8080)
+    else:
+        if not args.cpf:
+            print("❌ CPF is required in CLI mode. Use --cpf <number>")
+            sys.exit(1)
+        asyncio.run(async_main(
+            cpf=args.cpf,
+            name=args.name,
+            social_filter=args.social_filter
+        ))

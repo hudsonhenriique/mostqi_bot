@@ -16,24 +16,15 @@ async def run_bot(name=None, cpf=None, social_filter=False) -> SearchOutput:
         page = await browser.new_page()
 
         try:
-            # Main workflow sequence
             await access_consultation_page(page)
             await close_cookie_banner(page)
             await individual_consultation(page)
-            await close_cookie_banner(page)  # Re-check for reappearing banners
+            await close_cookie_banner(page)
             await fill_search_data(page, cpf=cpf, name=name, social_filter=social_filter)
             await perform_search(page)
-
-            # Save results and return the SearchOutput object
-            result = await save_search_result(
-                page,
-                cpf=cpf,
-                name=name,
-                social_filter=social_filter
-            )
-
-            print("Automation completed successfully.")
-            return result  # Retorna diretamente o objeto SearchOutput
+            
+            result = await save_search_result(page, cpf=cpf, name=name, social_filter=social_filter)
+            return result
 
         except Exception as error:
             print(f"An error occurred during automation: {error}")
@@ -43,12 +34,11 @@ async def run_bot(name=None, cpf=None, social_filter=False) -> SearchOutput:
                 image_base64=None,
                 query={
                     "cpf": cpf,
-                    "nome": name,
-                    "filtro_social": social_filter
+                    "name": name,
+                    "filtro_social": str(social_filter)
                 },
                 message=str(error)
             )
 
         finally:
             await browser.close()
-            print("Browser closed.")

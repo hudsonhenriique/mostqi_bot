@@ -1,11 +1,9 @@
+import os
 import json
 
-def save_json_output(data: dict, file_base: str):
-    try:
-        file_name = f"{file_base}.json"
-        with open(file_name, "w", encoding="utf-8") as json_file:
-            # Salva o JSON formatado com indentação
-            json.dump(data, json_file, indent=2, ensure_ascii=False)
-        print(f"JSON output saved to {file_name}")
-    except Exception as e:
-        print(f"Error saving JSON output: {e}")
+def save_json_output(data, file_base, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    file_path = os.path.join(output_dir, f"{file_base}.json")
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    print(f"✅ Arquivo JSON salvo em: {file_path}")
