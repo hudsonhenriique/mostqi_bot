@@ -1,15 +1,11 @@
-from dataclasses import dataclass, asdict
+from pydantic import BaseModel
 from typing import Optional, Dict
 
-@dataclass
-class SearchOutput:
+class SearchOutput(BaseModel):
     status: str
-    file: Optional[str] 
+    file: Optional[str]
     image_base64: Optional[str]
-    query: Dict
+    query: Dict[str, Optional[str]]
     message: Optional[str] = None
 
-    def to_clean_dict(self):
-       
-        return {key: value for key, value in asdict(self).items() if value is not None}
 
