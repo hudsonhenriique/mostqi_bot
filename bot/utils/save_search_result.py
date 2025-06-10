@@ -6,50 +6,83 @@ from bot.utils.json_helpers import save_json_output
 from integrations.drive import upload_file_to_drive
 from integrations.sheets import append_to_sheet
 
-async def save_search_result(page, cpf=None, name=None, social_filter=False) -> SearchOutput:
+async def save_search_result(page, cpf=None, name=None, social_filter=False, benefits_data=None) -> SearchOutput:
     try:
-        # folder outputs
+        
         output_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'outputs'))
         os.makedirs(output_dir, exist_ok=True)
 
-        # Generate base name with timestamp
+       
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         file_base = f"result_{timestamp}"
 
-        # screenshot
-        await page.wait_for_selector("#countResultados", state="visible", timeout=40000)
+        
+        if benefits_data and benefits_data.get("status") == "success":
+            
+            try:
+                await page.wait_for_selector("text=TOTAL DE RECURSOS DISPONIBILIZADOS", state="visible", timeout=10000)
+                print("📋 Taking screenshot of detailed benefits data...")
+            except:
+                
+                await page.wait_for_selector("#countResultados", state="visible", timeout=40000)
+                print("📋 Taking screenshot of search results...")
+        else:
+            
+            await page.wait_for_selector("#countResultados", state="visible", timeout=40000)
+            print("📋 Taking screenshot of search results...")
+
+   
         screenshot_path = os.path.join(output_dir, f"{file_base}.png")
-        await page.screenshot(path=screenshot_path,full_page=True)
-        print(f"📸 Screenshot salvo localmente em: {screenshot_path}")
+        await page.screenshot(path=screenshot_path, full_page=True)
+        print(f"📸 Screenshot saved locally at: {screenshot_path}")
 
         image_base64_str = image_to_base64(screenshot_path)
 
-        # JSON output
         result_data = {
-            "cpf": cpf,
-            "name": name,
-            "filtro_social": str(social_filter),
-            "timestamp": timestamp
+            "query_info": {
+                "cpf": cpf,
+                "name": name,
+                "social_filter": str(social_filter),
+                "timestamp": timestamp
+            },
+            "benefits_data": benefits_data or {
+                "status": "no_data",
+                "message": "No benefits data collected"
+            },
+            "summary": {
+                "total_benefits_found": benefits_data.get("total_benefits", 0) if benefits_data else 0,
+                "collection_status": benefits_data.get("status", "unknown") if benefits_data else "no_collection",
+                "has_detailed_data": bool(benefits_data and benefits_data.get("benefits"))
+            }
         }
+        
         json_path = save_json_output(result_data, file_base, output_dir)
 
-        # Upload image to Google Drive
+       
         screenshot_drive_url = upload_file_to_drive(screenshot_path, f"{file_base}.png", mime_type='image/png')
 
-        # Upload JSON to Google Drive
+        
         json_drive_url = upload_file_to_drive(json_path, f"{file_base}.json", mime_type='application/json')
 
-        # Add entry to Google Sheets
+       
+        benefits_summary = "No benefits data"
+        if benefits_data and benefits_data.get("benefits"):
+            programs = [benefit.get("program", "Unknown") for benefit in benefits_data["benefits"]]
+            benefits_summary = f"{len(programs)} programs: {', '.join(programs[:3])}" # First 3 programs
+            if len(programs) > 3:
+                benefits_summary += f" (+{len(programs)-3} more)"
+
         sheet_status = append_to_sheet([
             timestamp,
             cpf or "",
             name or "",
             str(social_filter),
+            benefits_summary,
             screenshot_drive_url,
             json_drive_url
         ])
 
-        print("✅ Dados adicionados ao Google Sheets.")
+        print("✅ Data added to Google Sheets.")
 
         return SearchOutput(
             status="success",
@@ -61,12 +94,13 @@ async def save_search_result(page, cpf=None, name=None, social_filter=False) -> 
             query={
                 "cpf": cpf,
                 "name": name,
-                "filtro_social": str(social_filter)
+                "filtro_social": str(social_filter),
+                "benefits_collected": benefits_data.get("total_benefits", 0) if benefits_data else 0
             }
         )
 
     except Exception as e:
-        print(f"❌ Erro ao salvar resultados: {e}")
+        print(f"❌ Error saving results: {e}")
         return SearchOutput(
             status="error",
             file=None,

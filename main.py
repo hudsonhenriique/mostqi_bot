@@ -32,7 +32,7 @@ async def run_bot_endpoint(request: BotRequest = Body(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-async def async_main(cpf: str, name: Optional[str] = None, social_filter: bool = True):
+async def async_main(cpf: Optional[str], name: Optional[str], social_filter: bool = True):
     try:
         output = await run_bot(name=name, cpf=cpf, social_filter=social_filter)
         print(json.dumps(output.model_dump(), indent=2, ensure_ascii=False))
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the bot as API or CLI")
     parser.add_argument("--api", action="store_true", help="Start the API server")
     parser.add_argument("--cpf", type=str, help="CPF to search (CLI mode)")
-    parser.add_argument("--name", type=str, help="Name to search (optional)")
+    parser.add_argument("--name", type=str, help="Name to search (CLI mode)")
     parser.add_argument("--social_filter", action="store_true", help="Enable social filter")
     
     args = parser.parse_args()
@@ -55,8 +55,9 @@ if __name__ == "__main__":
         import uvicorn
         uvicorn.run("main:app", host="127.0.0.1", port=8080)
     else:
-        if not args.cpf:
-            print("❌ CPF is required in CLI mode. Use --cpf <number>")
+        # Verificação modificada para aceitar CPF ou Nome
+        if not args.cpf and not args.name:
+            print("❌ CPF or Name is required in CLI mode. Use --cpf <number> or --name <name>")
             sys.exit(1)
         asyncio.run(async_main(
             cpf=args.cpf,
